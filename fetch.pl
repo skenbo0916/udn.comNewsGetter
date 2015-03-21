@@ -66,6 +66,7 @@ sub googleSearch {
 
     my $keywordUtf8 = decode( 'utf8', $keyword );
 
+    sleep $CONFIG->{minDelaySrcondsPerSearch} + rand( $CONFIG->{MAXDelaySrcondsPerSearch} - $CONFIG->{minDelaySrcondsPerSearch} );
     for my $eachGoogleSearchTerm ( mech( $uri ) ) {
 	next unless $eachGoogleSearchTerm->[1] =~ /$keywordUtf8/;
 	next unless $eachGoogleSearchTerm->[0] =~ /http:\/\/(?:\S*)udn\.com/;
@@ -94,6 +95,16 @@ sub targetSiteContentParser {
     $rawHtml =~ s/(?:\n|\r| )//g;
     my( $content ) = $rawHtml =~ /(<p>.*?<\/p>)/;
     $content =~ s/<(?:.*?)>//g;
+
+    $content;
+}
+
+sub deleteUnnecessaryWordsInReport {
+    my( $content ) = @_;
+
+    for( @{$CONFIG->{unnecessaryWordsList}} ) {
+	$content =~ s/$_//g;
+    }
 
     $content;
 }
@@ -127,7 +138,7 @@ sub main {
 
     `mkdir $CONFIG->{searchKeyword}`;
 
-    for( my $month = 2; $month <= 2; $month++ ) {
+    for( my $month = 1; $month <= 12; $month++ ) {
 	`mkdir $CONFIG->{searchKeyword}/$month`;
 
 	for( my $start = $CONFIG->{startTerm}; ; $start += $CONFIG->{searchPerPage} ) {
@@ -135,7 +146,6 @@ sub main {
 	    print "start: $start\n";
 
 	    my $googleSearchUri = googleSearchUriGenerator( $CONFIG->{searchKeyword}, $month, $start );
-	    sleep $CONFIG->{minDelaySrcondsPerSearch} + rand( $CONFIG->{MAXDelaySrcondsPerSearch} - $CONFIG->{minDelaySrcondsPerSearch} );
 
 	    my $googleSearchResultList = googleSearch( $googleSearchUri, $CONFIG->{searchKeyword} );
 
@@ -144,6 +154,7 @@ sub main {
 	    for my $eachResult ( @$googleSearchResultList ) {
 		my $rawHtml = get( $eachResult->{uri} );
 		my $content = targetSiteContentParser( $rawHtml, $eachResult->{uri} );
+		$content = deleteUnnecessaryWordsInReport( $content );
 
 		storeThePage( $month, {
 		    title => $eachResult->{title},
@@ -157,5 +168,4 @@ sub main {
 }
 
 main();
-
 1;
